@@ -1,0 +1,8 @@
+---
+- name: AWX Debug Test
+  hosts: all
+  gather_facts: no
+
+  tasks:
+    - debug:
+        msg: "AWX execution environment is working"
