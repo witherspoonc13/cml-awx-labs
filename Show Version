@@ -1,0 +1,16 @@
+---
+- name: Show Version
+  hosts: all
+  gather_facts: no
+
+  tasks:
+    - name: Run show version
+      cisco.ios.ios_command:
+        commands:
+          - show version
+
+      register: version_output
+
+    - name: Display output
+      debug:
+        var: version_output.stdout_lines
