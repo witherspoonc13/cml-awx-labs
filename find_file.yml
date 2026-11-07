@@ -1,15 +1,30 @@
 ---
-- name: Find Job Files
+- name: Test Mount Visibility
   hosts: all
   gather_facts: no
 
   tasks:
 
-    - name: Find backups
+    - name: Show mounts
       shell: |
-        find /runner -type f | sort
+        echo "WHOAMI:"
+        whoami
+
+        echo ""
+        echo "OPT:"
+        ls -ld /opt || true
+
+        echo ""
+        echo "NETWORK:"
+        ls -ld /opt/network-automation || true
+
+        echo ""
+        echo "RUNNING:"
+        ls -ld /opt/network-automation/running-configs || true
+
       delegate_to: localhost
-      register: files
+
+      register: output
 
     - debug:
-        var: files.stdout_lines
+        var: output.stdout_linesnes
