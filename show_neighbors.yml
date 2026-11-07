@@ -1,0 +1,28 @@
+---
+- name: Cisco Neighbor Discovery
+  hosts: all
+  gather_facts: no
+
+  tasks:
+
+    - name: Show CDP neighbors
+      cisco.ios.ios_command:
+        commands:
+          - show cdp neighbors
+
+      register: cdp_neighbors
+
+    - name: Display CDP neighbors
+      ansible.builtin.debug:
+        var: cdp_neighbors.stdout_lines
+
+    - name: Show CDP neighbor details
+      cisco.ios.ios_command:
+        commands:
+          - show cdp neighbors detail
+
+      register: cdp_detail
+
+    - name: Display CDP detail
+      ansible.builtin.debug:
+        var: cdp_detail.stdout_lines
