@@ -1,9 +1,0 @@
----
-- name: Local Test
-  hosts: localhost
-  connection: local
-  gather_facts: no
-
-  tasks:
-    - debug:
-        msg: "Execution Environment is working"
