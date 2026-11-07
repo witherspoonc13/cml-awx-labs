@@ -1,22 +1,24 @@
 ---
-- name: Save To Artifacts
+- name: Test persistent backup storage
   hosts: all
-  gather_facts: no
-
-  vars:
-    backup_time: "{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}"
+  gather_facts: false
 
   tasks:
-
-    - name: Get running config
-      cisco.ios.ios_command:
-        commands:
-          - show running-config
-      register: running_config
-
-    - name: Save artifact
-      copy:
-        content: "{{ running_config.stdout[0] }}"
-        dest: "/runner/artifacts/{{ inventory_hostname }}-running-config-{{ backup_time }}.cfg"
-
+    - name: Write a test file from the job container
+      ansible.builtin.copy:
+        content: "AWX storage test for {{ inventory_hostname }}\n"
+        dest: "/opt/network-automation/backups/test-{{ inventory_hostname }}.txt"
+        mode: "0644"
       delegate_to: localhost
+
+    - name: Confirm the test file exists inside the job container
+      ansible.builtin.stat:
+        path: "/opt/network-automation/backups/test-{{ inventory_hostname }}.txt"
+      register: test_file
+      delegate_to: localhost
+
+    - name: Fail if the file was not created
+      ansible.builtin.assert:
+        that:
+          - test_file.stat.exists
+        fail_msg: "The job could not find its test file in the mounted backup directory."
