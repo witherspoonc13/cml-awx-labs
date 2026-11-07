@@ -1,9 +1,0 @@
----
-- name: Connectivity Test
-  hosts: all
-  gather_facts: no
-
-  tasks:
-
-    - name: Test connectivity
-      ping:
