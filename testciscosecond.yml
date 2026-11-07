@@ -1,0 +1,20 @@
+---
+- name: Cisco Command Test
+  hosts: all
+  gather_facts: no
+
+  collections:
+    - cisco.ios
+
+  tasks:
+
+    - name: Run show version
+      ios_command:
+        commands:
+          - show version
+
+      register: output
+
+    - name: Display output
+      debug:
+        var: output.stdout_lines
