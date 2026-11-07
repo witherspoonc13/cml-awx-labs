@@ -1,18 +1,16 @@
 ---
-- name: Test Mounted Directory
+- name: Backup Running Configs
   hosts: all
   gather_facts: no
 
   tasks:
 
-    - name: Test mount
-      ansible.builtin.shell: |
-        ls -ld /opt/network-automation
-        ls -ld /opt/network-automation/running-configs
-      delegate_to: localhost
+    - name: Get running config
+      cisco.ios.ios_command:
+        commands:
+          - show running-config
+      register: running_config
 
-      register: mount_test
-
-    - name: Show result
+    - name: Display config
       debug:
-        var: mount_test.stdout_lines
+        var: running_config.stdout[0]
