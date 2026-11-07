@@ -1,19 +1,28 @@
 ---
-- name: Find Writable Location
+- name: Identify Job Runtime
   hosts: all
   gather_facts: no
 
   tasks:
 
-    - name: Create test file
-      ansible.builtin.shell: |
+    - name: Show container details
+      shell: |
+        hostname
+        whoami
         pwd
-        mkdir -p /tmp/test-write
-        echo "Hello World" > /tmp/test-write/test.txt
-        ls -l /tmp/test-write
+
+        echo ""
+        echo "Runner"
+
+        ls -la /runner 2>/dev/null
+
+        echo ""
+        echo "Mounts"
+
+        mount | sort
       delegate_to: localhost
 
-      register: result
+      register: runtime
 
     - debug:
-        var: result.stdout_lines
+        var: runtime.stdout_lines
