@@ -1,0 +1,20 @@
+---
+- name: EE Test
+  hosts: localhost
+  gather_facts: no
+
+  tasks:
+
+    - name: Show Ansible version
+      ansible.builtin.command: ansible --version
+      register: ansible_version
+
+    - debug:
+        var: ansible_version.stdout_lines
+
+    - name: Show installed collections
+      ansible.builtin.command: ansible-galaxy collection list
+      register: collections
+
+    - debug:
+        var: collections.stdout_lines
