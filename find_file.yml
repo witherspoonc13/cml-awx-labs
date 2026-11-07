@@ -1,20 +1,22 @@
 ---
-- name: Test EE Filesystem
+- name: Save To Artifacts
   hosts: all
   gather_facts: no
 
+  vars:
+    backup_time: "{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}"
+
   tasks:
 
-    - name: Check for mount
-      shell: |
-        echo "PWD=$(pwd)"
-        echo ""
-        ls -ld /opt || true
-        ls -ld /opt/network-automation || true
-        ls -ld /runner/project || true
+    - name: Get running config
+      cisco.ios.ios_command:
+        commands:
+          - show running-config
+      register: running_config
+
+    - name: Save artifact
+      copy:
+        content: "{{ running_config.stdout[0] }}"
+        dest: "/runner/artifacts/{{ inventory_hostname }}-running-config-{{ backup_time }}.cfg"
+
       delegate_to: localhost
-
-      register: test
-
-    - debug:
-        var: test.stdout_lines
