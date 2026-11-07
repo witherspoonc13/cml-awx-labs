@@ -1,24 +1,20 @@
 ---
-- name: Test persistent backup storage
+- name: Test Exposed Host Path
   hosts: all
-  gather_facts: false
+  gather_facts: no
 
   tasks:
-    - name: Write a test file from the job container
-      ansible.builtin.copy:
-        content: "AWX storage test for {{ inventory_hostname }}\n"
-        dest: "/opt/network-automation/backups/test-{{ inventory_hostname }}.txt"
-        mode: "0644"
+
+    - name: Verify path visibility
+      ansible.builtin.shell: |
+        whoami
+        pwd
+        ls -ld /opt/network-automation
+        ls -ld /opt/network-automation/running-configs
+        ls -ld /opt/network-automation/alerts
       delegate_to: localhost
 
-    - name: Confirm the test file exists inside the job container
-      ansible.builtin.stat:
-        path: "/opt/network-automation/backups/test-{{ inventory_hostname }}.txt"
-      register: test_file
-      delegate_to: localhost
+      register: output
 
-    - name: Fail if the file was not created
-      ansible.builtin.assert:
-        that:
-          - test_file.stat.exists
-        fail_msg: "The job could not find its test file in the mounted backup directory."
+    - debug:
+        var: output.stdout_lines
