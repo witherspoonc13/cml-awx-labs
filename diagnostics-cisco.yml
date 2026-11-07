@@ -1,0 +1,13 @@
+---
+- name: Cisco Module Discovery
+  hosts: localhost
+  gather_facts: no
+
+  tasks:
+
+    - name: Show Cisco plugins
+      command: ansible-doc -l
+      register: docs
+
+    - debug:
+        var: docs.stdout_lines
