@@ -1,12 +1,15 @@
 ---
-- name: Test Write Access
+- name: Find Job Files
   hosts: all
   gather_facts: no
 
   tasks:
 
-    - name: Test file creation
-      ansible.builtin.copy:
-        content: "test"
-        dest: "/opt/network-automation/running-configs/test.txt"
+    - name: Find backups
+      shell: |
+        find /runner -type f | sort
       delegate_to: localhost
+      register: files
+
+    - debug:
+        var: files.stdout_lines
