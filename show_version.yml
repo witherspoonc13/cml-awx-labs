@@ -1,8 +1,0 @@
----
-- name: AWX Test
-  hosts: all
-  gather_facts: no
-
-  tasks:
-    - debug:
-        msg: "AWX can reach my device inventory"
