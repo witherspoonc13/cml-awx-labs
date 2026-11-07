@@ -1,20 +1,13 @@
 ---
-- name: Cisco Collection Test
-  hosts: all
+- name: Collection Verification
+  hosts: localhost
   gather_facts: no
-
-  collections:
-    - cisco.ios
 
   tasks:
 
-    - name: Show version
-      cisco.ios.ios_command:
-        commands:
-          - show version
+    - name: Show collection path
+      command: ansible-config dump
+      register: cfg
 
-      register: version_output
-
-    - name: Display output
-      ansible.builtin.debug:
-        var: version_output.stdout_lines
+    - debug:
+        var: cfg.stdout_lines
