@@ -1,0 +1,36 @@
+---
+- name: Create Missing Baselines Only
+  hosts: all
+  gather_facts: no
+
+  tasks:
+
+    - name: Check if baseline exists
+      ansible.builtin.stat:
+        path: "/opt/network-automation/baselines/{{ inventory_hostname }}-baseline.cfg"
+      register: baseline_stat
+      delegate_to: localhost
+
+    - name: Get running config if baseline missing
+      cisco.ios.ios_command:
+        commands:
+          - show running-config
+      register: running_config
+      when: not baseline_stat.stat.exists
+
+    - name: Create baseline if missing
+      ansible.builtin.copy:
+        content: "{{ running_config.stdout[0] }}"
+        dest: "/opt/network-automation/baselines/{{ inventory_hostname }}-baseline.cfg"
+      when: not baseline_stat.stat.exists
+      delegate_to: localhost
+
+    - name: Baseline already exists
+      ansible.builtin.debug:
+        msg: "Baseline already exists for {{ inventory_hostname }}. No changes made."
+      when: baseline_stat.stat.exists
+
+    - name: Baseline created
+      ansible.builtin.debug:
+        msg: "Baseline created for {{ inventory_hostname }}"
+      when: not baseline_stat.stat.exists
