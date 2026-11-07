@@ -1,28 +1,12 @@
 ---
-- name: Identify Job Runtime
+- name: Test Write Access
   hosts: all
   gather_facts: no
 
   tasks:
 
-    - name: Show container details
-      shell: |
-        hostname
-        whoami
-        pwd
-
-        echo ""
-        echo "Runner"
-
-        ls -la /runner 2>/dev/null
-
-        echo ""
-        echo "Mounts"
-
-        mount | sort
+    - name: Test file creation
+      ansible.builtin.copy:
+        content: "test"
+        dest: "/opt/network-automation/running-configs/test.txt"
       delegate_to: localhost
-
-      register: runtime
-
-    - debug:
-        var: runtime.stdout_lines
