@@ -1,9 +1,9 @@
 ---
-- name: Local Cisco Test
-  hosts: localhost
+- name: Connectivity Test
+  hosts: all
   gather_facts: no
 
   tasks:
-    - name: Show installed collections
-      debug:
-        msg: "Cisco collection is available"
+
+    - name: Test connectivity
+      ping:
