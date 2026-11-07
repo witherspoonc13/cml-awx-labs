@@ -12,14 +12,10 @@
       cisco.ios.ios_command:
         commands:
           - show running-config
-
       register: running_config
 
     - name: Save running config
-      copy:
+      ansible.builtin.copy:
         content: "{{ running_config.stdout[0] }}"
-        dest: >
-          /opt/network-automation/running-configs/
-          {{ inventory_hostname }}-running-config-{{ backup_time }}.cfg
-
+        dest: "/opt/network-automation/running-configs/{{ inventory_hostname }}-running-config-{{ backup_time }}.cfg"
       delegate_to: localhost
