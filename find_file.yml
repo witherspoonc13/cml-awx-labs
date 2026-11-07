@@ -1,0 +1,19 @@
+---
+- name: Find Writable Location
+  hosts: all
+  gather_facts: no
+
+  tasks:
+
+    - name: Create test file
+      ansible.builtin.shell: |
+        pwd
+        mkdir -p /tmp/test-write
+        echo "Hello World" > /tmp/test-write/test.txt
+        ls -l /tmp/test-write
+      delegate_to: localhost
+
+      register: result
+
+    - debug:
+        var: result.stdout_lines
