@@ -1,13 +1,20 @@
 ---
-- name: Cisco Module Discovery
-  hosts: localhost
+- name: Cisco Collection Test
+  hosts: all
   gather_facts: no
+
+  collections:
+    - cisco.ios
 
   tasks:
 
-    - name: Show Cisco plugins
-      command: ansible-doc -l
-      register: docs
+    - name: Show version
+      cisco.ios.ios_command:
+        commands:
+          - show version
 
-    - debug:
-        var: docs.stdout_lines
+      register: version_output
+
+    - name: Display output
+      ansible.builtin.debug:
+        var: version_output.stdout_lines
