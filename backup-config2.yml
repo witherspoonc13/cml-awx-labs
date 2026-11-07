@@ -3,14 +3,25 @@
   hosts: all
   gather_facts: no
 
+  vars:
+    backup_time: "{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}"
+
   tasks:
 
     - name: Get running config
       cisco.ios.ios_command:
         commands:
           - show running-config
+
       register: running_config
 
-    - name: Display config
+    - name: Save running config
+      ansible.builtin.copy:
+        content: "{{ running_config.stdout[0] }}"
+        dest: "/runner/project/{{ inventory_hostname }}-running-config-{{ backup_time }}.cfg"
+
+      delegate_to: localhost
+
+    - name: Display saved file
       debug:
-        var: running_config.stdout[0]
+        msg: "/runner/project/{{ inventory_hostname }}-running-config-{{ backup_time }}.cfg"
