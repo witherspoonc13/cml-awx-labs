@@ -1,16 +1,28 @@
 ---
-- name: Show Version
+- name: Cisco Neighbor Discovery
   hosts: all
   gather_facts: no
 
   tasks:
-    - name: Run show version
+
+    - name: Show CDP neighbors
       cisco.ios.ios_command:
         commands:
-          - show version
+          - show cdp neighbors
+      register: cdp_output
 
-      register: version_output
+    - name: Display CDP neighbors
+      ansible.builtin.debug:
+        var: cdp_output.stdout_lines
 
-    - name: Display output
-      debug:
-        var: version_output.stdout_lines
+    - name: Show LLDP neighbors
+      cisco.ios.ios_command:
+        commands:
+          - show lldp neighbors
+      register: lldp_output
+      ignore_errors: yes
+
+    - name: Display LLDP neighbors
+      ansible.builtin.debug:
+        var: lldp_output.stdout_lines
+      when: lldp_output is defined
