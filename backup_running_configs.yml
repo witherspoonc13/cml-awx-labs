@@ -1,0 +1,25 @@
+---
+- name: Backup Running Configs
+  hosts: all
+  gather_facts: no
+
+  vars:
+    backup_time: "{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}"
+
+  tasks:
+
+    - name: Get running config
+      cisco.ios.ios_command:
+        commands:
+          - show running-config
+
+      register: running_config
+
+    - name: Save running config
+      copy:
+        content: "{{ running_config.stdout[0] }}"
+        dest: >
+          /opt/network-automation/running-configs/
+          {{ inventory_hostname }}-running-config-{{ backup_time }}.cfg
+
+      delegate_to: localhost
