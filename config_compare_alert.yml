@@ -1,0 +1,67 @@
+---
+- name: Compare Running Config To Baseline
+  hosts: all
+  gather_facts: no
+
+  vars:
+    timestamp: "{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}"
+
+  tasks:
+
+    - name: Get running config
+      cisco.ios.ios_command:
+        commands:
+          - show running-config
+      register: running_config
+
+    - name: Read baseline config
+      ansible.builtin.slurp:
+        src: "/opt/network-automation/baselines/{{ inventory_hostname }}-baseline.cfg"
+      register: baseline_file
+      delegate_to: localhost
+
+    - name: Compare configs
+      ansible.builtin.set_fact:
+        config_changed: >-
+          {{
+            running_config.stdout[0] | trim
+            !=
+            (baseline_file.content | b64decode | trim)
+          }}
+
+    - name: Save running config when different
+      ansible.builtin.copy:
+        content: "{{ running_config.stdout[0] }}"
+        dest: "/opt/network-automation/alerts/{{ inventory_hostname }}-running-config-{{ timestamp }}.cfg"
+      when: config_changed
+      delegate_to: localhost
+
+    - name: Save baseline config when different
+      ansible.builtin.copy:
+        content: "{{ baseline_file.content | b64decode }}"
+        dest: "/opt/network-automation/alerts/{{ inventory_hostname }}-baseline-{{ timestamp }}.cfg"
+      when: config_changed
+      delegate_to: localhost
+
+    - name: Create alert file
+      ansible.builtin.copy:
+        content: |
+          CONFIG DIFFERENCE DETECTED
+
+          Device: {{ inventory_hostname }}
+
+          Date: {{ timestamp }}
+
+          Running configuration does not match baseline.
+
+          Review attached baseline and running configuration files.
+        dest: "/opt/network-automation/alerts/{{ inventory_hostname }}-alert-{{ timestamp }}.txt"
+      when: config_changed
+      delegate_to: localhost
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg: >
+          {{ inventory_hostname }}
+          configuration matches baseline
+      when: not config_changed
