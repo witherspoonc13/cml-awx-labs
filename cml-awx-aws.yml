@@ -100,4 +100,3 @@
               but the S3 backup is NOT confirmed.
               Check S3 access, network connectivity,
               and AWX execution environment.
-ved and S3 upload succeeded.
