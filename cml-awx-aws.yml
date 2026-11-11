@@ -1,0 +1,103 @@
+
+---
+- name: Backup Cisco Configs to Local VM and AWS S3
+  hosts: all
+  gather_facts: false
+
+  vars:
+    backup_dir: "/opt/network-automation/running-configs"
+    s3_bucket: "aux-cml-bucket"
+    aws_region: "us-east-2"
+
+  tasks:
+
+    - name: Generate one timestamp for this device
+      ansible.builtin.set_fact:
+        backup_time: "{{ now(utc=true, fmt='%Y%m%d-%H%M%S') }}"
+
+    - name: Set backup filename and S3 object key
+      ansible.builtin.set_fact:
+        backup_filename: >-
+          {{ inventory_hostname }}-running-config-{{ backup_time }}.cfg
+        s3_key: >-
+          cml-backups/{{ inventory_hostname }}/{{ inventory_hostname }}-running-config-{{ backup_time }}.cfg
+
+    - name: Collect Cisco running configuration
+      cisco.ios.ios_command:
+        commands:
+          - show running-config
+      register: running_config
+      no_log: true
+
+    - name: Create local backup directory
+      ansible.builtin.file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: "0700"
+      delegate_to: localhost
+
+    - name: Save running configuration locally
+      ansible.builtin.copy:
+        content: "{{ running_config.stdout[0] }}\n"
+        dest: "{{ backup_dir }}/{{ backup_filename }}"
+        mode: "0600"
+      delegate_to: localhost
+      no_log: true
+
+    - name: Upload and verify backup in AWS S3
+      block:
+
+        - name: Force upload local backup file to S3
+          amazon.aws.s3_object:
+            bucket: "{{ s3_bucket }}"
+            object: "{{ s3_key }}"
+            src: "{{ backup_dir }}/{{ backup_filename }}"
+            mode: put
+            overwrite: always
+            region: "{{ aws_region }}"
+            encrypt: true
+            encryption_mode: AES256
+            permission: []
+          delegate_to: localhost
+          register: s3_upload
+          no_log: true
+
+        - name: Read S3 backup for verification
+          amazon.aws.s3_object:
+            bucket: "{{ s3_bucket }}"
+            object: "{{ s3_key }}"
+            mode: getstr
+            region: "{{ aws_region }}"
+          delegate_to: localhost
+          register: s3_verify
+          no_log: true
+
+        - name: Verify S3 configuration matches original
+          ansible.builtin.assert:
+            that:
+              - s3_verify.contents == (running_config.stdout[0] ~ '\n')
+            fail_msg: "S3 backup content verification failed."
+            success_msg: "S3 backup content verified."
+          no_log: true
+
+        - name: Report successful backup
+          ansible.builtin.debug:
+            msg:
+              - "Device: {{ inventory_hostname }}"
+              - "Local backup: {{ backup_dir }}/{{ backup_filename }}"
+              - "S3 bucket: {{ s3_bucket }}"
+              - "S3 object: {{ s3_key }}"
+              - "S3 verification: PASSED"
+
+      rescue:
+
+        - name: Report S3 backup failure
+          ansible.builtin.fail:
+            msg: >-
+              S3 backup or verification failed for
+              {{ inventory_hostname }}.
+              The local configuration was saved successfully,
+              but the S3 backup is NOT confirmed.
+              Check S3 access, network connectivity,
+              and AWX execution environment.
+ved and S3 upload succeeded.
