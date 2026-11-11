@@ -1,0 +1,52 @@
+---
+- name: Backup Cisco CML Configurations to Local Storage and AWS S3
+  hosts: all
+  gather_facts: false
+
+  vars:
+    backup_time: "{{ now(utc=true, fmt='%Y%m%d-%H%M%S') }}"
+    backup_dir: "/opt/network-automation/running-configs"
+    s3_bucket: "aux-cml-bucket"
+    aws_region: "us-east-2"
+
+  tasks:
+
+    - name: Collect Cisco running configuration
+      cisco.ios.ios_command:
+        commands:
+          - show running-config
+      register: running_config
+      no_log: true
+
+    - name: Create local backup directory
+      ansible.builtin.file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: "0700"
+      delegate_to: localhost
+
+    - name: Save running configuration locally
+      ansible.builtin.copy:
+        content: "{{ running_config.stdout[0] }}\n"
+        dest: "{{ backup_dir }}/{{ inventory_hostname }}-running-config-{{ backup_time }}.cfg"
+        mode: "0600"
+      delegate_to: localhost
+      no_log: true
+
+    - name: Upload running configuration to AWS S3
+      amazon.aws.s3_object:
+        bucket: "{{ s3_bucket }}"
+        object: "cml-backups/{{ inventory_hostname }}/{{ inventory_hostname }}-running-config-{{ backup_time }}.cfg"
+        content: "{{ running_config.stdout[0] }}\n"
+        mode: put
+        region: "{{ aws_region }}"
+        encrypt: true
+        encryption_mode: AES256
+      delegate_to: localhost
+      no_log: true
+
+    - name: Confirm backup completed
+      ansible.builtin.debug:
+        msg: >-
+          Backup completed for {{ inventory_hostname }}.
+          Local copy saved and S3 upload succeeded.
