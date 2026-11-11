@@ -1,0 +1,128 @@
+    - name: Show which S3 backup was selected
+      ansible.builtin.debug:
+        msg: "Restoring {{ inventory_hostname }} from s3://{{ s3_bucket }}/{{ selected_s3_key }}"
+
+    - name: Create a private temporary directory in AWX execution environment
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: _cml_restore
+      delegate_to: localhost
+      register: restore_tmp
+
+    - name: Download and restore configuration
+      block:
+        - name: Download selected backup from S3
+          amazon.aws.s3_object:
+            bucket: "{{ s3_bucket }}"
+            object: "{{ selected_s3_key }}"
+            dest: "{{ restore_tmp.path }}/restore.cfg"
+            mode: get
+            overwrite: always
+            region: "{{ aws_region }}"
+          delegate_to: localhost
+          no_log: true
+
+        - name: Inspect downloaded backup file
+          ansible.builtin.stat:
+            path: "{{ restore_tmp.path }}/restore.cfg"
+          delegate_to: localhost
+          register: restore_stat
+
+        - name: Reject empty backup file
+          ansible.builtin.assert:
+            that:
+              - restore_stat.stat.exists
+              - restore_stat.stat.size | int > 0
+            fail_msg: "S3 backup download is missing or empty."
+
+        - name: Check backup is for the selected Cisco hostname
+          ansible.builtin.slurp:
+            src: "{{ restore_tmp.path }}/restore.cfg"
+          delegate_to: localhost
+          register: downloaded_config
+          no_log: true
+
+        - name: Refuse to restore another device's configuration
+          ansible.builtin.assert:
+            that:
+              - (downloaded_config.content | b64decode) is search('(?m)^hostname[ ]+' ~ inventory_hostname ~ '$')
+            fail_msg: "Backup hostname does not match the selected AWX host."
+          no_log: true
+
+        - name: Remove show-command headers not accepted by Cisco configuration replace
+          ansible.builtin.replace:
+            path: "{{ restore_tmp.path }}/restore.cfg"
+            regexp: '(?m)^(?:Building configuration[.]*|Current configuration[ ]*:[ ]*[0-9]+ bytes)[ ]*\r?\n'
+            replace: ''
+          delegate_to: localhost
+          no_log: true
+
+        - name: Stage backup on Cisco flash using SCP
+          ansible.netcommon.net_put:
+            src: "{{ restore_tmp.path }}/restore.cfg"
+            dest: "{{ flash_restore_file }}"
+            protocol: scp
+            mode: binary
+          no_log: true
+
+        - name: Verify configuration file exists on device flash
+          cisco.ios.ios_command:
+            commands:
+              - "dir {{ flash_restore_file }}"
+          register: staged_file_check
+          no_log: true
+
+        - name: Confirm staged file is visible on device
+          ansible.builtin.assert:
+            that:
+              - "flash_restore_file.split(':')[-1] in staged_file_check.stdout[0]"
+            fail_msg: "Restore file was not found on Cisco flash."
+          no_log: true
+
+        - name: Replace running configuration from staged backup
+          cisco.ios.ios_command:
+            commands:
+              - "configure replace {{ flash_restore_file }} force"
+          register: replace_result
+          no_log: true
+
+        - name: Detect Cisco configuration replacement errors
+          ansible.builtin.assert:
+            that:
+              - replace_result.stdout[0] is not search('(?i)(rollback failed|error|invalid input)')
+            fail_msg: "Cisco reported a configuration replacement error."
+          no_log: true
+
+        - name: Verify device is reachable after replacement
+          cisco.ios.ios_command:
+            commands:
+              - show running-config | include ^hostname
+          register: post_restore
+          no_log: true
+
+        - name: Confirm expected hostname after replacement
+          ansible.builtin.assert:
+            that:
+              - post_restore.stdout[0] is search('(?m)^hostname[ ]+' ~ inventory_hostname ~ '$')
+            fail_msg: "Post-restore hostname verification failed or SSH lost connectivity."
+          no_log: true
+
+        - name: Save restored running configuration to startup configuration
+          cisco.ios.ios_config:
+            save_when: always
+          no_log: true
+
+        - name: Report recovery completion
+          ansible.builtin.debug:
+            msg: >-
+              Configuration replace completed for {{ inventory_hostname }} using
+              s3://{{ s3_bucket }}/{{ selected_s3_key }}. SSH verification passed
+              and startup-config save completed. Review interfaces and routing.
+
+      always:
+        - name: Remove temporary backup file from AWX execution environment
+          ansible.builtin.file:
+            path: "{{ restore_tmp.path }}"
+            state: absent
+          delegate_to: localhost
+          no_log: true
