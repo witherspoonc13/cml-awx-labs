@@ -1,12 +1,38 @@
- - name: Upload running configuration to AWS S3
+
+---
+- name: Diagnose AWX Connection to AWS S3
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    s3_bucket: "aux-cml-bucket"
+    aws_region: "us-east-2"
+
+  tasks:
+
+    - name: Check AWS credentials are available
+      ansible.builtin.assert:
+        that:
+          - lookup('env', 'AWS_ACCESS_KEY_ID') | length > 0
+          - lookup('env', 'AWS_SECRET_ACCESS_KEY') | length > 0
+        fail_msg: "AWS credentials are not available to this job."
+        success_msg: "AWS credentials are available."
+      no_log: true
+
+    - name: Upload harmless test file to AWS S3
       amazon.aws.s3_object:
-        bucket: "aux-cml-bucket"
-        object: "cml-backups/{{ inventory_hostname }}/{{ inventory_hostname }}-running-config-{{ backup_time }}.cfg"
-        content: "{{ running_config.stdout[0] }}\n"
+        bucket: "{{ s3_bucket }}"
+        object: "awx-tests/connection-test.txt"
+        content: "AWX connection test - no sensitive data"
         mode: put
-        region: "us-east-2"
+        region: "{{ aws_region }}"
         encrypt: true
         encryption_mode: AES256
         permission: []
-      delegate_to: localhost
-      no_log: true
+      register: s3_test
+
+    - name: Confirm successful upload
+      ansible.builtin.debug:
+        msg: "AWX successfully uploaded the test file to AWS S3."
+      when: s3_test is succeeded
