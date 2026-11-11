@@ -27,7 +27,7 @@
         commands:
           - show running-config
       register: running_config
-      no_log: true
+      no_log: false
 
     - name: Create local backup directory
       ansible.builtin.file:
@@ -42,7 +42,7 @@
         dest: "{{ backup_dir }}/{{ backup_filename }}"
         mode: "0600"
       delegate_to: localhost
-      no_log: true
+      no_log: false
 
     - name: Upload and verify backup in AWS S3
       block:
@@ -60,7 +60,7 @@
             permission: []
           delegate_to: localhost
           register: s3_upload
-          no_log: true
+          no_log: false
 
         - name: Read S3 backup for verification
           amazon.aws.s3_object:
@@ -70,7 +70,7 @@
             region: "{{ aws_region }}"
           delegate_to: localhost
           register: s3_verify
-          no_log: true
+          no_log: false
 
         - name: Verify S3 configuration matches original
           ansible.builtin.assert:
@@ -78,7 +78,7 @@
               - s3_verify.contents == (running_config.stdout[0] ~ '\n')
             fail_msg: "S3 backup content verification failed."
             success_msg: "S3 backup content verified."
-          no_log: true
+          no_log: false
 
         - name: Report successful backup
           ansible.builtin.debug:
